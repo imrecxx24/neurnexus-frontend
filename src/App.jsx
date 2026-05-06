@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API = "https://neur-nexus-backend-2.onrender.com/api";
+const API = "https://neurnexus-backendhm.onrender.com/api";
 
 export default function App() {
   const [token, setToken] = useState(null);
@@ -92,26 +92,22 @@ export default function App() {
     try {
       const res = await fetch(`${API}/chats`, {
         headers: {
-          Authorization: `Bearer ${useToken}`, // ✅ FIXED
+          Authorization: `Bearer ${useToken}`,
         },
       });
 
-      // ❌ DO NOT auto logout (this was your bug)
-      if (!res.ok) {
-        console.log("Chat load failed");
-        return;
-      }
+      if (!res.ok) return;
 
       const data = await res.json();
       setChats(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.log(err);
+      console.log("Chat load error:", err);
     }
   };
 
   const openChat = (c) => {
     setChatId(c._id);
-    setMessages(c.messages || []);
+    setMessages(Array.isArray(c.messages) ? c.messages : []);
   };
 
   const newChat = () => {
@@ -124,7 +120,7 @@ export default function App() {
       await fetch(`${API}/chat/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`, // ✅ FIXED
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -141,16 +137,16 @@ export default function App() {
 
   // ================= CHAT =================
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !token) return;
 
     const userMsg = input;
     setInput("");
     setLoading(true);
 
+    // ONLY push user message
     setMessages((prev) => [
       ...prev,
       { text: userMsg, sender: "user" },
-      { text: "", sender: "ai" },
     ]);
 
     try {
@@ -158,32 +154,35 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // ✅ FIXED
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ message: userMsg, chatId }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Chat failed");
-      }
+      if (!res.ok) throw new Error(data.error || "Chat failed");
 
       if (data.chatId && !chatId) {
         setChatId(data.chatId);
       }
 
-      setMessages((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1].text = data.reply;
-        return copy;
-      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: data.reply || "⚠️ No response from AI",
+          sender: "ai",
+        },
+      ]);
+
     } catch (err) {
-      setMessages((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1].text = "Error generating response";
-        return copy;
-      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: "⚠️ Server error / waking up... try again",
+          sender: "ai",
+        },
+      ]);
     } finally {
       setLoading(false);
       loadChats(token);
@@ -242,15 +241,14 @@ export default function App() {
         </button>
 
         <div className="chatList">
-          {Array.isArray(chats) &&
-            chats.map((c) => (
-              <div key={c._id} className="chatItem">
-                <span onClick={() => openChat(c)}>
-                  {c.title || "Untitled"}
-                </span>
-                <button onClick={() => deleteChat(c._id)}>🗑</button>
-              </div>
-            ))}
+          {chats.map((c) => (
+            <div key={c._id} className="chatItem">
+              <span onClick={() => openChat(c)}>
+                {c.title || "Untitled"}
+              </span>
+              <button onClick={() => deleteChat(c._id)}>🗑</button>
+            </div>
+          ))}
         </div>
 
         <button className="logout" onClick={logout}>
@@ -269,7 +267,7 @@ export default function App() {
 
           {loading && (
             <div className="typing">
-              AI is thinking...
+              Thinking...
             </div>
           )}
         </div>
