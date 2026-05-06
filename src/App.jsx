@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API = "https://neurnexus-backendhm.onrender.com/api";
-
+const API =
+  import.meta?.env?.VITE_API_URL ||
+  process.env.REACT_APP_API_URL ||
+  "https://neurnexus-backendhm.onrender.com/api";
 export default function App() {
   const [token, setToken] = useState(null);
 
