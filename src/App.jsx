@@ -77,7 +77,7 @@ export default function App() {
   };
 
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem("token");
     setToken(null);
     setChats([]);
     setMessages([]);
@@ -92,20 +92,20 @@ export default function App() {
     try {
       const res = await fetch(`${API}/chats`, {
         headers: {
-          Authorization: useToken, // ✅ FIXED (NO Bearer)
+          Authorization: `Bearer ${useToken}`, // ✅ FIXED
         },
       });
 
-      if (res.status === 401) {
-        logout();
+      // ❌ DO NOT auto logout (this was your bug)
+      if (!res.ok) {
+        console.log("Chat load failed");
         return;
       }
 
       const data = await res.json();
-
       setChats(Array.isArray(data) ? data : []);
-    } catch {
-      setChats([]);
+    } catch (err) {
+      console.log(err);
     }
   };
 
@@ -124,7 +124,7 @@ export default function App() {
       await fetch(`${API}/chat/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: token, // ✅ FIXED
+          Authorization: `Bearer ${token}`, // ✅ FIXED
         },
       });
 
@@ -158,7 +158,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token, // ✅ FIXED
+          Authorization: `Bearer ${token}`, // ✅ FIXED
         },
         body: JSON.stringify({ message: userMsg, chatId }),
       });
@@ -169,12 +169,10 @@ export default function App() {
         throw new Error(data.error || "Chat failed");
       }
 
-      // set new chat id if created
       if (data.chatId && !chatId) {
         setChatId(data.chatId);
       }
 
-      // update AI response
       setMessages((prev) => {
         const copy = [...prev];
         copy[copy.length - 1].text = data.reply;
@@ -192,7 +190,7 @@ export default function App() {
     }
   };
 
-  // ================= LOGIN SCREEN =================
+  // ================= LOGIN UI =================
   if (!token) {
     return (
       <div className="auth">
@@ -204,6 +202,7 @@ export default function App() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+
           <input
             placeholder="Password"
             type="password"
@@ -237,7 +236,6 @@ export default function App() {
   return (
     <div className="app">
 
-      {/* SIDEBAR */}
       <div className="sidebar">
         <button className="newChat" onClick={newChat}>
           + New Chat
@@ -260,7 +258,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* CHAT AREA */}
       <div className="chatArea">
 
         <div className="messages">
